@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import asyncio
 from bs4 import BeautifulSoup
+from pathlib import Path
 import re
 import requests
-from pathlib import Path
+import sqlite3
 
 MEP_SITE_FOLDER = './mep_sites/'
 
@@ -63,8 +64,8 @@ async def scrape(mep_site_path):
             committes = status.find_all(class_='erpl_committee')
             statuses[status_string] = [c.string for c in committes]
 
-        return {'name': name, 'european_fraction': european_fraction, 'nation': nation,
-                'national_party': national_party, 'emails': emails, 'statuses': statuses}
+        return {'id': Path(mep_site_path).stem, 'name': name, 'eu_fraction': european_fraction, 'nation': nation,
+                'national_party': national_party, 'emails': emails, 'roles': statuses}
 
 async def scrape_all():
     path = Path(MEP_SITE_FOLDER)
@@ -80,9 +81,58 @@ def gen_mailto_link(meps):
     link = 'mailto:' + ','.join([mep['emails'][0] for mep in meps])
     return link
 
+def init_db(conn):
+    curs = conn.cursor()
+
+    curs.execute('''
+        CREATE TABLE meps
+            (mep_id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL,
+            nation TEXT, eu_fraction TEXT, national_party TEXT)
+        ''')
+
+    curs.execute('''
+        CREATE TABLE emails
+            (mep_id INTEGER, email TEXT NOT NULL, FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
+        ''')
+
+    curs.execute('''
+        CREATE TABLE roles
+            (mep_id INTEGER, committee TEXT NOT NULL, role TEXT,
+            FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
+        ''')
+
+    conn.commit()
+
+def save_to_db(meps, db='meps.db'):
+    conn = sqlite3.connect(db)
+    curs = conn.cursor()
+
+    init_db(conn)
+
+    for mep in meps:
+        curs.execute('''
+            INSERT INTO meps VALUES
+                (?,?,?,?,?)
+            ''', (int(mep['id']), mep['name'], mep['nation'], mep['eu_fraction'], mep['national_party']))
+
+        for email in mep['emails']:
+            curs.execute('''
+                INSERT INTO emails VALUES (?,?)
+                ''', (int(mep['id']), email))
+
+        for role in mep['roles']:
+            for committee in mep['roles'][role]:
+                curs.execute('''
+                    INSERT INTO roles VALUES (?,?,?)
+                    ''', (int(mep['id']), role, committee))
+
+    conn.commit()
+    conn.close()
+
 if __name__ == '__main__':
     #asyncio.run(download_mep_sites())
     loop = asyncio.get_event_loop()
     res = loop.run_until_complete(loop.create_task(scrape_all()))
-    print(gen_mailto_link([mep for mep in res if mep['nation'] == 'Germany']))
+    save_to_db(res)
+    #print(gen_mailto_link([mep for mep in res if mep['nation'] == 'Germany']))
 
