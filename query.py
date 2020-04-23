@@ -109,8 +109,7 @@ def save_to_db(meps, db):
 
     for mep in meps:
         curs.execute('''
-            INSERT INTO meps VALUES
-                (?,?,?,?,?)
+            INSERT INTO meps VALUES (?,?,?,?,?)
             ''', (int(mep['id']), mep['name'], mep['nation'], mep['eu_fraction'], mep['national_party']))
 
         for email in mep['emails']:
