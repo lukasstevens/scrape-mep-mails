@@ -47,7 +47,7 @@ async def scrape(mep_site_path):
 
         national_info_tag = mep_soup.find(class_='erpl_title-h3 mt-1 mb-1')
         national_info = national_info_tag.string.split(' - ')
-        nation = national_info[0].strip()
+        country = national_info[0].strip()
         national_party = national_info[-1].strip()
 
         def descramble(mail):
@@ -63,7 +63,7 @@ async def scrape(mep_site_path):
             committes = status.find_all(class_='erpl_committee')
             statuses[status_string] = [c.string for c in committes]
 
-        return {'id': Path(mep_site_path).stem, 'name': name, 'eu_fraction': european_fraction, 'nation': nation,
+        return {'id': int(Path(mep_site_path).stem), 'name': name, 'eu_fraction': european_fraction, 'country': country,
                 'national_party': national_party, 'emails': emails, 'roles': statuses}
 
 async def scrape_all(path):
@@ -85,7 +85,7 @@ def init_db(conn):
     curs.execute('''
         CREATE TABLE meps
             (mep_id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL,
-            nation TEXT, eu_fraction TEXT, national_party TEXT)
+            eu_fraction TEXT NOT NULL, national_party TEXT NOT NULL)
         ''')
 
     curs.execute('''
@@ -95,9 +95,14 @@ def init_db(conn):
 
     curs.execute('''
         CREATE TABLE roles
-            (mep_id INTEGER, committee TEXT NOT NULL, role TEXT,
+            (mep_id INTEGER, committee TEXT NOT NULL, role TEXT NOT NULL,
             FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
         ''')
+
+    curs.execute('''
+        CREATE TABLE national_parties
+            (party TEXT NOT NULL, country TEXT NOT NULL)
+            ''')
 
     conn.commit()
 
@@ -107,21 +112,28 @@ def save_to_db(meps, db):
 
     init_db(conn)
 
+    country_of_party = {}
     for mep in meps:
+        country_of_party[mep['national_party']] = mep['country']
         curs.execute('''
-            INSERT INTO meps VALUES (?,?,?,?,?)
-            ''', (int(mep['id']), mep['name'], mep['nation'], mep['eu_fraction'], mep['national_party']))
+            INSERT INTO meps VALUES (?,?,?,?)
+            ''', (mep['id'], mep['name'], mep['eu_fraction'], mep['national_party']))
 
         for email in mep['emails']:
             curs.execute('''
                 INSERT INTO emails VALUES (?,?)
-                ''', (int(mep['id']), email))
+                ''', (mep['id'], email))
 
         for role in mep['roles']:
             for committee in mep['roles'][role]:
                 curs.execute('''
                     INSERT INTO roles VALUES (?,?,?)
-                    ''', (int(mep['id']), role, committee))
+                    ''', (mep['id'], role, committee))
+
+    for party, country in country_of_party.items():
+        curs.execute('''
+            INSERT INTO national_parties VALUES (?,?)
+            ''', (party, country))
 
     conn.commit()
     conn.close()
