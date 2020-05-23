@@ -136,6 +136,8 @@ def save_to_db(meps, db):
             ''', (party, country))
 
     conn.commit()
+
+    curs.close()
     conn.close()
 
 
