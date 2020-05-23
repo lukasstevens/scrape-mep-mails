@@ -8,6 +8,7 @@ import requests
 import shutil
 import sys
 import sqlite3
+import json
 
 async def download_mep_sites(path):
     mep_list_req = requests.get('https://www.europarl.europa.eu/meps/en/full-list/all')
@@ -166,6 +167,31 @@ def initdb(args):
         meps = loop.run_until_complete(loop.create_task(scrape_all(input_path)))
         save_to_db(meps, output_path)
 
+def dumpschema(args):
+    conn = sqlite3.connect(Path(args.input_db))
+    curs = conn.cursor()
+
+    curs.execute("SELECT tbl_name FROM sqlite_master WHERE type='table';")
+    tables = curs.fetchall()
+
+    schema = {}
+    for (table,) in tables:
+        meta = curs.execute("PRAGMA table_info('{}')".format(table))
+        schema[table] = []
+        for column in meta:
+            (cid, name, typ, notnull, dflt_value, pk) = column
+            schema[table].append({
+                'Field': name,
+                'PrimaryKey': bool(pk),
+                'Type': typ,
+                'Null': not bool(notnull),
+                'Default': dflt_value
+                })
+
+    print(json.dumps(schema, indent=2))
+
+    curs.close()
+    conn.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -188,6 +214,11 @@ if __name__ == '__main__':
             help='Filename of the SQLite3 database (default: %(default)s)')
     parser_initdb.add_argument('--force', '-f', action='store_true',
             help='a flag indicating whether the database should be overwritten')
+
+    parser_dumpschema = subparsers.add_parser('dumpschema', help='Dump the schema of a SQLite3 database')
+    parser_dumpschema.set_defaults(func=dumpschema)
+    parser_dumpschema.add_argument('--input_db', '-i', type=str, default='meps.db',
+            help='The input database (default: %(default)s)')
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
