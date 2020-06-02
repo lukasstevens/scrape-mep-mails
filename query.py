@@ -177,16 +177,18 @@ def dumpschema(args):
     schema = {}
     for (table,) in tables:
         meta = curs.execute("PRAGMA table_info('{}')".format(table))
-        schema[table] = []
+        schema[table] = {}
+        schema[table]['Name'] = table
+        schema[table]['Columns'] = {}
         for column in meta:
-            (cid, name, typ, notnull, dflt_value, pk) = column
-            schema[table].append({
-                'Field': name,
+            (cid, field_name, typ, notnull, dflt_value, pk) = column
+            schema[table]['Columns'][field_name] = {
+                'Name': field_name,
                 'PrimaryKey': bool(pk),
                 'Type': typ,
                 'Null': not bool(notnull),
                 'Default': dflt_value
-                })
+                }
 
     print(json.dumps(schema, indent=2))
 
