@@ -55,8 +55,13 @@ async def scrape(mep_site_path):
             mail = mail.replace('[dot]', '.').replace('[at]', '@').replace('mailto:', '')
             return mail[::-1]
 
-        emails = [descramble(a['href']) for a in mep_soup.find_all(class_=re.compile('link_email'))]
-
+        emails = []
+        for a in mep_soup.find_all(class_=re.compile('link_email')):
+            mail = descramble(a['href'])
+            if '@' in mail:
+                emails.append(mail)
+            else:
+                print('The email {} was dropped since it is malformed'.format(mail), file=sys.stderr)
 
         statuses = {}
         for status in mep_soup.find_all(class_='erpl_meps-status'):
@@ -84,14 +89,23 @@ def init_db(conn):
     curs = conn.cursor()
 
     curs.execute('''
+        CREATE TABLE national_parties
+            (national_party_id INTEGER NOT NULL PRIMARY KEY, party TEXT NOT NULL, country TEXT NOT NULL,
+            CONSTRAINT Unational_parties UNIQUE(party, country))
+            ''')
+
+    curs.execute('''
         CREATE TABLE meps
             (mep_id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL,
-            eu_fraction TEXT NOT NULL, national_party TEXT NOT NULL)
+            eu_fraction TEXT NOT NULL, national_party_id INTEGER NOT NULL,
+            FOREIGN KEY (national_party_id) REFERENCES national_parties(national_party_id))
         ''')
 
     curs.execute('''
         CREATE TABLE emails
-            (mep_id INTEGER, email TEXT NOT NULL, FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
+            (mep_id INTEGER, email TEXT NOT NULL,
+            CONSTRAINT Uemails UNIQUE(mep_id, email),
+            FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
         ''')
 
     curs.execute('''
@@ -99,11 +113,6 @@ def init_db(conn):
             (mep_id INTEGER, committee TEXT NOT NULL, role TEXT NOT NULL,
             FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
         ''')
-
-    curs.execute('''
-        CREATE TABLE national_parties
-            (party TEXT NOT NULL, country TEXT NOT NULL)
-            ''')
 
     conn.commit()
 
@@ -114,15 +123,17 @@ def save_to_db(meps, db):
     init_db(conn)
 
     country_of_party = {}
+    party_id = {party: i for (i, party) in enumerate(set(mep['national_party'] for mep in meps))}
+
     for mep in meps:
         country_of_party[mep['national_party']] = mep['country']
         curs.execute('''
             INSERT INTO meps VALUES (?,?,?,?)
-            ''', (mep['id'], mep['name'], mep['eu_fraction'], mep['national_party']))
+            ''', (mep['id'], mep['name'], mep['eu_fraction'], party_id[mep['national_party']]))
 
         for email in mep['emails']:
             curs.execute('''
-                INSERT INTO emails VALUES (?,?)
+                INSERT OR IGNORE INTO emails VALUES (?,?)
                 ''', (mep['id'], email))
 
         for role in mep['roles']:
@@ -133,8 +144,8 @@ def save_to_db(meps, db):
 
     for party, country in country_of_party.items():
         curs.execute('''
-            INSERT INTO national_parties VALUES (?,?)
-            ''', (party, country))
+            INSERT OR IGNORE INTO national_parties VALUES (?,?,?)
+            ''', (party_id[party], party, country))
 
     conn.commit()
 
