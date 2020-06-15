@@ -110,7 +110,7 @@ def init_db(conn):
 
     curs.execute('''
         CREATE TABLE roles
-            (mep_id INTEGER, committee TEXT NOT NULL, role TEXT NOT NULL,
+            (mep_id INTEGER, role TEXT NOT NULL, committee TEXT NOT NULL,
             FOREIGN KEY (mep_id) REFERENCES meps(mep_id))
         ''')
 
