@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import aiohttp
 import argparse
 import asyncio
 from bs4 import BeautifulSoup
@@ -11,31 +12,32 @@ import sqlite3
 import json
 
 async def download_mep_sites(path):
-    mep_list_req = requests.get('https://www.europarl.europa.eu/meps/en/full-list/all')
-    assert mep_list_req.status_code is 200
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=20)) as session:
+        mep_list_req = await session.get('https://www.europarl.europa.eu/meps/en/full-list/all')
+        assert mep_list_req.status is 200
 
-    mep_list_soup = BeautifulSoup(mep_list_req.text, 'html.parser')
+        mep_list_soup = BeautifulSoup(await mep_list_req.text(), 'html.parser')
 
-    mep_sites = []
-    for mep_block in mep_list_soup.find_all(id=re.compile('member-block-')):
-        mep_block_content = mep_block.find(class_=re.compile('erpl_member-list-item-content'))
-        mep_site = mep_block_content['href']
+        mep_sites = []
+        for mep_block in mep_list_soup.find_all(id=re.compile('member-block-')):
+            mep_block_content = mep_block.find(class_=re.compile('erpl_member-list-item-content'))
+            mep_site = mep_block_content['href']
 
-        s = mep_block['id'].split('-')
-        assert len(s) is 3
-        mep_sites.append((s[2], mep_site))
-
-
-    async def save_mep_site(mep_id, mep_site_url):
-        mep_site_req = requests.get(mep_site_url)
-        assert mep_site_req.status_code is 200
-
-        with open('./{}/{}.html'.format(path, mep_id), 'w') as mep_site_file:
-            mep_site_file.write(mep_site_req.text)
+            s = mep_block['id'].split('-')
+            assert len(s) is 3
+            mep_sites.append((s[2], mep_site))
 
 
-    tasks = [save_mep_site(i, url) for (i, url) in mep_sites]
-    results = await asyncio.gather(*tasks)
+        async def save_mep_site(mep_id, mep_site_url):
+            async with session.get(mep_site_url) as mep_site_response:
+                assert mep_site_response.status is 200
+
+                with open('./{}/{}.html'.format(path, mep_id), 'w') as mep_site_file:
+                    mep_site_file.write(await mep_site_response.text())
+
+
+        tasks = [save_mep_site(i, url) for (i, url) in mep_sites]
+        results = await asyncio.gather(*tasks)
 
 
 async def scrape(mep_site_path):
