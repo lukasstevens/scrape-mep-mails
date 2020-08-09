@@ -40,7 +40,7 @@ async def download_mep_sites(path, connection_limit):
         results = await asyncio.gather(*tasks)
 
 
-async def scrape(mep_site_path):
+def scrape(mep_site_path):
     with open(mep_site_path, 'r') as site_file:
         mep_site_content = site_file.read()
         mep_soup = BeautifulSoup(mep_site_content, 'html.parser')
@@ -75,13 +75,8 @@ async def scrape(mep_site_path):
                 'national_party': national_party, 'emails': emails, 'roles': statuses}
 
 async def scrape_all(path):
-    statuses = set()
-
     files = list(path.glob('*.html'))
-    tasks = [scrape(f) for f in files]
-    results = await asyncio.gather(*tasks)
-
-    return results
+    return [scrape(f) for f in files]
 
 def gen_mailto_link(meps):
     link = 'mailto:' + ','.join([mep['emails'][0] for mep in meps])
