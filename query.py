@@ -11,8 +11,8 @@ import sys
 import sqlite3
 import json
 
-async def download_mep_sites(path):
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=20)) as session:
+async def download_mep_sites(path, connection_limit):
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=connection_limit)) as session:
         mep_list_req = await session.get('https://www.europarl.europa.eu/meps/en/full-list/all')
         assert mep_list_req.status is 200
 
@@ -163,7 +163,7 @@ def download(args):
         if p.exists():
             shutil.rmtree(p)
         p.mkdir()
-        asyncio.run(download_mep_sites(p))
+        asyncio.run(download_mep_sites(p, args.connection_limit))
 
 def initdb(args):
     input_path = Path(args.input_dir)
@@ -218,22 +218,24 @@ if __name__ == '__main__':
     parser_download.add_argument('--output_dir', '-o', type=str, default='mep_sites/',
             help='the output directory for the scraped MEP sites (default: %(default)s)')
     parser_download.add_argument('--force', '-f', action='store_true',
-            help='a flag indicating whether the output-dir should be overwritten')
+            help='a flag indicating whether the output_dir should be overwritten')
+    parser_download.add_argument('--connection_limit', '-l', type=int, default=10,
+            help='the number of concurrent tcp connections when scraping. If the limit is too high, the site might block requests. (default %(default)s)')
 
 
     parser_initdb = subparsers.add_parser('initdb', help='Create and populate a SQLite3 database with the scraped data')
     parser_initdb.set_defaults(func=initdb)
     parser_initdb.add_argument('--input_dir', '-i', type=str, default='mep_sites/',
-            help='The directory of the scraped MEP websites (default: %(default)s)')
+            help='the directory of the scraped MEP websites (default: %(default)s)')
     parser_initdb.add_argument('--output', '-o', type=str, default='meps.db',
-            help='Filename of the SQLite3 database (default: %(default)s)')
+            help='filename of the SQLite3 database (default: %(default)s)')
     parser_initdb.add_argument('--force', '-f', action='store_true',
             help='a flag indicating whether the database should be overwritten')
 
     parser_dumpschema = subparsers.add_parser('dumpschema', help='Dump the schema of a SQLite3 database')
     parser_dumpschema.set_defaults(func=dumpschema)
     parser_dumpschema.add_argument('--input_db', '-i', type=str, default='meps.db',
-            help='The input database (default: %(default)s)')
+            help='the input database (default: %(default)s)')
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
