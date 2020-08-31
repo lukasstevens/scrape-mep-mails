@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from contextlib import closing
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 from .scrape import MepData
 
@@ -39,7 +39,7 @@ def init_db(curs: sqlite3.Cursor) -> None:
         ''')
 
 
-def insert_mep_data(curs: sqlite3.Cursor, meps: Iterable[MepData]) -> None:
+def insert_mep_data(curs: sqlite3.Cursor, meps: List[MepData]) -> None:
     country_of_party = {}
     party_id = {party: i for (i, party) in enumerate(set(mep.national_party for mep in meps))}
 
@@ -70,5 +70,5 @@ def save_meps_to_db(db_file: Path, meps: Iterable[MepData]) -> None:
     with sqlite3.connect(db_file) as conn:
         with closing(conn.cursor()) as curs:
             init_db(curs)
-            insert_mep_data(curs, meps)
+            insert_mep_data(curs, list(meps))
             conn.commit()
