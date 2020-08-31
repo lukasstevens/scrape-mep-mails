@@ -27,11 +27,11 @@ jobs:
 
     - name: Download MEP sites
       run: |
-        actnow-scrape -v download
+        actnow-scrape download
 
     - name: Scrape MEP sites and create SQLite3 Database
       run: |
-        actnow-scrape -v initdb -o meps-`date +%Y-%m-%dT%H-%M-%S`.db
+        actnow-scrape initdb -o meps-`date +%Y-%m-%dT%H-%M-%S`.db
 
     - name: Upload Database artifact
       uses: actions/upload-artifact@v2
