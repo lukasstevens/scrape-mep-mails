@@ -1,2 +1,3 @@
-# scrape-mep-mails
-A small python script that scrapes information about the members of the European parliament (MEPs) from their official EU websites.
+# actnow-scrape
+
+Scrape data from the members of the European Parliament (MEPs) from the official EU websites.

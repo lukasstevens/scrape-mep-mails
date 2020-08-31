@@ -1,2 +1,5 @@
-mep_sites/
 *.db
+*.egg-info/
+.venv/
+.vscode/
+mep_sites/

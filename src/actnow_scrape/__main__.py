@@ -203,7 +203,7 @@ def dumpschema(args):
     curs.close()
     conn.close()
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands', dest='cmd')
     subparsers.required = True
@@ -235,3 +235,5 @@ if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
+if __name__ == '__main__':
+    main()
