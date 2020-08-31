@@ -1,0 +1,40 @@
+name: Actnow scrape
+
+on:
+
+  # Run the workflow on PRs against the master branch.
+  pull_request:
+    branches: [ master ]
+
+  # Allow running the workflow manually in the UI.
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+
+    - name: Download MEP sites
+      run: |
+        actnow-scrape -v download
+
+    - name: Scrape MEP sites and create SQLite3 Database
+      run: |
+        actnow-scrape -v initdb -o meps-`date +%Y-%m-%dT%H-%M-%S`.db
+
+    - name: Upload Database artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: meps-database
+        path: meps-*.db
