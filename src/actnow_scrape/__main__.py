@@ -74,7 +74,7 @@ def scrape(mep_site_path):
         return {'id': int(Path(mep_site_path).stem), 'name': name, 'eu_fraction': european_fraction, 'country': country,
                 'national_party': national_party, 'emails': emails, 'roles': statuses}
 
-async def scrape_all(path):
+def scrape_all(path):
     files = list(path.glob('*.html'))
     return [scrape(f) for f in files]
 
