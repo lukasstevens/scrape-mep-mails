@@ -3,7 +3,7 @@ version: 0.0.0
 author: Lukas Stevens <mail@lukas-stevens.de>
 description: Scrape data from the members of the European Parliament (MEPs) from the
   official EU websites.
-url: https://github.com/lukasstevens/scrape-mep-mails
+url: https://github.com/lukasstevens/actnow-scrape
 requirements:
 - python ^3.7
 - requests ^2.22.0
