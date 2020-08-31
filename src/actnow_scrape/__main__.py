@@ -1,16 +1,10 @@
-
 import asyncio
 import click
 import json
 import logging
-import re
 import shutil
 import sqlite3
-import sys
 from pathlib import Path
-
-import aiohttp
-import requests
 
 from .db import save_meps_to_db
 from .download import download_mep_sites
@@ -100,7 +94,7 @@ def dumpschema(input_db):
         schema[table]['Name'] = table
         schema[table]['Columns'] = {}
         for column in meta:
-            (cid, field_name, typ, notnull, dflt_value, pk) = column
+            (_cid, field_name, typ, notnull, dflt_value, pk) = column
             schema[table]['Columns'][field_name] = {
                 'Name': field_name,
                 'PrimaryKey': bool(pk),
@@ -116,4 +110,4 @@ def dumpschema(input_db):
 
 
 if __name__ == '__main__':
-    cli()
+    cli()  # pylint: disable=no-value-for-parameter
