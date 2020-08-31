@@ -19,6 +19,7 @@ requirements = [
   'requests >=2.22.0,<3.0.0',
   'beautifulsoup4 >=4.9.1,<5.0.0',
   'aiohttp >=3.6.2,<4.0.0',
+  'click >=7.1.2,<8.0.0',
 ]
 
 setuptools.setup(
@@ -29,7 +30,7 @@ setuptools.setup(
   description = 'Scrape data from the members of the European Parliament (MEPs) from the official EU websites.',
   long_description = long_description,
   long_description_content_type = 'text/markdown',
-  url = None,
+  url = 'https://github.com/lukasstevens/actnow-scrape',
   license = None,
   packages = setuptools.find_packages('src', ['test', 'test.*', 'tests', 'tests.*', 'docs', 'docs.*']),
   package_dir = {'': 'src'},
@@ -41,7 +42,7 @@ setuptools.setup(
   data_files = [],
   entry_points = {
     'console_scripts': [
-      'actnow-scrape = actnow_scrape.__main__:main',
+      'actnow-scrape = actnow_scrape.__main__:cli',
     ]
   },
   cmdclass = {},
