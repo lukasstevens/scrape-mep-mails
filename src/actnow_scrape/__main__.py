@@ -44,12 +44,15 @@ def download(output_dir, force, connection_limit):
     """
 
     if output_dir.exists() and not force:
-        print('The path {} already exists. Consider using the --force option.'.format(str(output_dir)))
-    else:
-        if output_dir.exists():
-            shutil.rmtree(output_dir)
-        output_dir.mkdir()
-        asyncio.run(download_mep_sites(output_dir, connection_limit))
+        LOGGER.error("The path '%s' already exists. Consider using the --force option.", output_dir)
+        return
+
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+
+    output_dir.mkdir()
+    num_sites = asyncio.run(download_mep_sites(output_dir, connection_limit))
+    print(f"Downloaded {num_sites} sites to '{output_dir}'.")
 
 
 @cli.command()
@@ -63,15 +66,19 @@ def initdb(input_dir, output_db, force):
     """
 
     if not input_dir.is_dir():
-        print('The input directory {} does not exist.'.format(str(input_dir)))
+        LOGGER.error("The input directory '%s' does not exist.", input_dir)
         return
+
     if output_db.exists() and not force:
-        print('The path {} already exists. Consider using the --force option.'.format(str(output_db)))
-    else:
-        if output_db.exists():
-            output_db.unlink()
-        meps = scrape_mep_sites(input_dir)
-        save_meps_to_db(output_db, meps)
+        LOGGER.error("The path '%s' already exists. Consider using the --force option.", output_db)
+        return
+
+    if output_db.exists():
+        output_db.unlink()
+
+    meps = scrape_mep_sites(input_dir)
+    save_meps_to_db(output_db, meps)
+    print(f"Created database at '{output_db}'")
 
 
 @cli.command()
