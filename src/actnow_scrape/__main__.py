@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-import aiohttp
-import argparse
+
 import asyncio
-from bs4 import BeautifulSoup
-from pathlib import Path
-import re
-import requests
-import shutil
-import sys
-import sqlite3
+import click
 import json
+import re
+import shutil
+import sqlite3
+import sys
+from pathlib import Path
+
+import aiohttp
+import requests
+from bs4 import BeautifulSoup
+
 
 async def download_mep_sites(path, connection_limit):
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=connection_limit)) as session:
@@ -150,33 +153,64 @@ def save_to_db(meps, db):
     conn.close()
 
 
-def download(args):
-    p = Path(args.output_dir)
-    if p.exists() and not args.force:
-        print('The path {} already exists. Consider using the --force option.'.format(str(p)))
-    else:
-        if p.exists():
-            shutil.rmtree(p)
-        p.mkdir()
-        asyncio.run(download_mep_sites(p, args.connection_limit))
+@click.group()
+def cli():
+    """
+    Scrape data from the members of the European Parliament (MEPs).
+    """
 
-def initdb(args):
-    input_path = Path(args.input_dir)
-    output_path = Path(args.output)
-    if not input_path.is_dir():
-        print('The input directory {} does not exist.'.format(str(input_path)))
+
+@cli.command()
+@click.option('--output-dir', '-o', default='mep_sites/', type=Path, help='output directory')
+@click.option('--force', '-f', is_flag=True, help='overwrite the output directory')
+@click.option('--connection-limit', '-l', type=int, default=10,
+    help='the maximum number of concurrent TCP connections. If the limit is too high, '
+         'requests may be blocked (default: %(default)s)')
+def download(output_dir, force, connection_limit):
+    """
+    Download the websites of the MEPs to a local directory.
+    """
+
+    if output_dir.exists() and not force:
+        print('The path {} already exists. Consider using the --force option.'.format(str(output_dir)))
+    else:
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir()
+        asyncio.run(download_mep_sites(output_dir, connection_limit))
+
+
+@cli.command()
+@click.option('--input-dir', '-i', type=Path, default='mep_sites/', help='input directory')
+@click.option('--output-db', '-o', type=Path, default='meps.db',
+    help='filename of the SQLite3 database (default: %(default)s)')
+@click.option('--force', '-f', is_flag=True, help='overwrite the output database')
+def initdb(input_dir, output_db, force):
+    """
+    Scrape the MEP websites previously downloaded and populate an SQLite3 database with the data.
+    """
+
+    if not input_dir.is_dir():
+        print('The input directory {} does not exist.'.format(str(input_dir)))
         return
-    if output_path.exists() and not args.force:
-        print('The path {} already exists. Consider using the --force option.'.format(str(output_path)))
+    if output_db.exists() and not force:
+        print('The path {} already exists. Consider using the --force option.'.format(str(output_db)))
     else:
-        if output_path.exists():
-            output_path.unlink()
+        if output_db.exists():
+            output_db.unlink()
         loop = asyncio.get_event_loop()
-        meps = loop.run_until_complete(loop.create_task(scrape_all(input_path)))
-        save_to_db(meps, output_path)
+        meps = loop.run_until_complete(loop.create_task(scrape_all(input_dir)))
+        save_to_db(meps, output_db)
 
-def dumpschema(args):
-    conn = sqlite3.connect(Path(args.input_db))
+
+@cli.command()
+@click.option('--input-db', '-i', type=Path, default='meps.db', help='input database (default: %(default)s)')
+def dumpschema(input_db):
+    """
+    Dump the schema of an SQLite3 database.
+    """
+
+    conn = sqlite3.connect(input_db)
     curs = conn.cursor()
 
     curs.execute("SELECT tbl_name FROM sqlite_master WHERE type='table';")
@@ -203,37 +237,6 @@ def dumpschema(args):
     curs.close()
     conn.close()
 
-def main():
-    parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(title='subcommands', dest='cmd')
-    subparsers.required = True
-
-    parser_download = subparsers.add_parser('download', aliases=['dl'], help='Download the websites of the MEPs.')
-    parser_download.set_defaults(func=download)
-    parser_download.add_argument('--output_dir', '-o', type=str, default='mep_sites/',
-            help='the output directory for the scraped MEP sites (default: %(default)s)')
-    parser_download.add_argument('--force', '-f', action='store_true',
-            help='a flag indicating whether the output_dir should be overwritten')
-    parser_download.add_argument('--connection_limit', '-l', type=int, default=10,
-            help='the number of concurrent tcp connections when scraping. If the limit is too high, the site might block requests. (default %(default)s)')
-
-
-    parser_initdb = subparsers.add_parser('initdb', help='Create and populate a SQLite3 database with the scraped data')
-    parser_initdb.set_defaults(func=initdb)
-    parser_initdb.add_argument('--input_dir', '-i', type=str, default='mep_sites/',
-            help='the directory of the scraped MEP websites (default: %(default)s)')
-    parser_initdb.add_argument('--output', '-o', type=str, default='meps.db',
-            help='filename of the SQLite3 database (default: %(default)s)')
-    parser_initdb.add_argument('--force', '-f', action='store_true',
-            help='a flag indicating whether the database should be overwritten')
-
-    parser_dumpschema = subparsers.add_parser('dumpschema', help='Dump the schema of a SQLite3 database')
-    parser_dumpschema.set_defaults(func=dumpschema)
-    parser_dumpschema.add_argument('--input_db', '-i', type=str, default='meps.db',
-            help='the input database (default: %(default)s)')
-
-    args = parser.parse_args(sys.argv[1:])
-    args.func(args)
 
 if __name__ == '__main__':
-    main()
+    cli()
