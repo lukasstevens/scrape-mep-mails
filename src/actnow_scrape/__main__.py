@@ -51,8 +51,7 @@ def download(output_dir, force, connection_limit):
         shutil.rmtree(output_dir)
 
     output_dir.mkdir()
-    num_sites = asyncio.run(download_mep_sites(output_dir, connection_limit))
-    print(f"Downloaded {num_sites} sites to '{output_dir}'.")
+    asyncio.run(download_mep_sites(output_dir, connection_limit))
 
 
 @cli.command()
