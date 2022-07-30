@@ -56,3 +56,5 @@ async def download_mep_sites(directory: Path, connection_limit: int) -> None:
 
         tasks = [save_mep_site(session, directory, i, url) for (i, url) in mep_sites]
         await asyncio.gather(*tasks)
+
+    return len(mep_sites)
